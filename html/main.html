@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset='utf-8' />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+    <script src="/html/lib/jquery3.2.1.min.js"></script>
+    <link rel="stylesheet" href="/html/lib/font-awesome4.7/font-awesome4.7.min.css">
+    <script src="/html/lib/vue2.3.2.js"></script>
+    <link rel="stylesheet" href="/html/lib/bootstrap.min.css">
+
+
+    <script src='/html/lib/exfun.js'></script>
+    <!--<script src='{% static "js/uis.pack.js" %}'></script>-->
+    <!--<script src='{% static "js/fields.pack.js?t=20170522" %}'></script>-->
+    <!--<link href="{% static 'css/ui.css'%}" rel="stylesheet">-->
+</head>
+
+
+<script type="text/javascript">
+    Vue.config.devtools = true
+
+    $(function () {
+
+        new Vue({
+            el:'#there',
+            data:{
+                name:'hell my world',
+                msg:[],
+                md5:'',
+                contact_list:[]
+            },
+            //https://wx2.qq.com
+            computed:{
+                img_url:function(){
+                    return '/temp/wxqr.png?md5='+this.md5
+                }
+            },
+            methods:{
+                start:function(){
+                    var post_data=[{fun:'start'}]
+                    $.post('',JSON.stringify(post_data),function(resp){
+                        alert(resp)
+                    })
+                },
+                get_state:function(){
+                    var self=this
+                    var post_data=[{fun:'get_state'}]
+                    $.post('',JSON.stringify(post_data),function(resp){
+                        ex.each(resp,function(item){
+                            if(item.key=='msg'){
+                                self.msg.push(item.value)
+                            }else if(item.key=='md5'){
+                                self.md5=item.value
+                            }else if(item.key=='contact_list'){
+                                self.contact_list=item.value
+                            }
+                        })
+                    })
+                }
+            }
+        })
+
+    })
+
+
+</script>
+<body >
+
+<div id="there">
+    <div class="content">
+        <button @click="start()">启动</button>
+        <button>刷新二维码</button>
+        <button @click="get_state()">get state</button>
+        <img :src="img_url" alt=""/>
+        <span v-text="name"></span>
+        <ul >
+            <li v-for="item in msg">
+                <span v-text="item"></span>
+            </li>
+        </ul>
+        <div v-for="contact in contact_list">
+            <span>ss</span>
+            <img :src="'/proxy?url='+encodeURIComponent(contact.HeadImgUrl) " alt=""/>
+        </div>
+    </div>
+
+
+</div>
+
+
+<style>
+    .content{
+        display: flex;
+    }
+</style>
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+src/settings/__init__.py
+src/settings/dev.py
+.settings/
+src/.idea/
+*.pyc
+media
+run
+imported_studio
+imported_dev/
+cookie/
+apk/
+app_code/AntTest/bin/
+deploy/*.tar.gz
+venv
+.idea/
+/log
