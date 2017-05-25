@@ -12,6 +12,7 @@
 
 
     <script src='/html/lib/exfun.js'></script>
+    <script src='/html/lib/uis.pack.js'></script>
     <!--<script src='{% static "js/uis.pack.js" %}'></script>-->
     <!--<script src='{% static "js/fields.pack.js?t=20170522" %}'></script>-->
     <!--<link href="{% static 'css/ui.css'%}" rel="stylesheet">-->
@@ -27,21 +28,76 @@
             el:'#there',
             data:{
                 name:'hell my world',
-                msg:[],
+                msg:[],// msg,
                 md5:'',
-                contact_list:[]
+                contact_list:[] , //contact_list,
+                group_list:[],
+                list_view:'userlist',
+                selected_contact:[],
+                selected_group:[],
+                toggle_contact:false,
+                toggle_city:false,
+                toggle_group:false,
+                selected_city:[],
             },
             //https://wx2.qq.com
             computed:{
                 img_url:function(){
                     return '/temp/wxqr.png?md5='+this.md5
+                },
+                city_list:function(){
+                    var obj={}
+                    ex.each(this.contact_list,function(contact){
+                        obj[contact.City]=''
+                    })
+                    var citys=[]
+                    for(var k in obj){
+                        citys.push(k)
+                    }
+                    return citys.sort()
+                },
+                normed_msg:function(){
+                    return ex.filter(this.msg,function(line){
+                        return line!='\n'
+                    })
                 }
+            },
+            watch:{
+                toggle_contact:function(v){
+                   if(v){
+                       this.selected_contact=this.contact_list.slice()
+                   }else{
+                       this.selected_contact=[]
+                   }
+                },
+                toggle_city:function(v){
+                    if(v){
+                        this.selected_city=this.city_list.slice()
+                        this.selected_contact=this.contact_list.slice()
+                    }else{
+                        this.selected_city=[]
+                        this.selected_contact=[]
+                    }
+                },
+            },
+            mounted:function(){
+                var self=this
+                setInterval(function(){
+                    self.get_state()
+                },2000)
             },
             methods:{
                 start:function(){
-                    var post_data=[{fun:'start'}]
+                    var self=this
+                    self.msg=[]
+                    self.contact_list=[]
+                    self.group_list=[]
+                    self.selected_contact=[]
+                    self.selected_group=[]
+
+                    var post_data=[{fun:'end_last_bot'},{fun:'start'}]
                     $.post('',JSON.stringify(post_data),function(resp){
-                        alert(resp)
+//                        alert(resp)
                     })
                 },
                 get_state:function(){
@@ -55,8 +111,38 @@
                                 self.md5=item.value
                             }else if(item.key=='contact_list'){
                                 self.contact_list=item.value
+                            }else if(item.key=='group_list'){
+                                self.group_list=item.value
                             }
                         })
+                    })
+                },
+                check_city:function(city,e){
+                    var self=this
+                    if(!e.target.checked){
+                        ex.remove(this.selected_contact,function(contact){
+                            return contact.City==city
+                        })
+                    }else{
+                        ex.each(this.contact_list,function(contact){
+                            if(contact.City==city && !ex.isin(contact,self.selected_contact)){
+                                self.selected_contact.push(contact)
+                            }
+                        })
+                    }
+
+                },
+                send:function(){
+                    var contact_list=this.selected_contact.concat(this.selected_group)
+                    var post_data=[{fun:'send',contact_list:contact_list}]
+                    $.post('',JSON.stringify(post_data),function(resp){
+                        alert('ok')
+                    })
+                },
+                logout:function(){
+                    var post_data=[{fun:'end_last_bot'}]
+                    $.post('',JSON.stringify(post_data),function(resp){
+                        alert('ok')
                     })
                 }
             }
@@ -68,28 +154,76 @@
 </script>
 <body >
 
-<div id="there">
+<div id="there" style="width: 100%;height: 100%;">
+
+
     <div class="content">
 
-        <div>
-            <div>
-                <button @click="start()">启动</button>
-                <button @click="get_state()">get state</button>
+        <div class="item">
+            <div style="float: right;padding:0.5em 1em;">
+                <span>选中联系人:</span>
+                <span v-text="selected_contact.length"></span>
             </div>
-            <div><img :src="img_url" alt=""/></div>
-            <ul >
-                <li v-for="item in msg">
-                    <span v-text="item"></span>
+
+            <ul class="nav nav-tabs">
+                <li role="presentation" :class="{'active':list_view=='userlist'}" @click="list_view='userlist'"><a href="#">联系人</a></li>
+                <li role="presentation" :class="{'active':list_view=='userfilter'}" @click="list_view='userfilter'"><a href="#">联系人过滤</a></li>
+                <li role="presentation" :class="{'active':list_view=='group'}" @click="list_view='group'"><a href="#">群</a></li>
+            </ul>
+
+
+            <ul class="user-list" v-show="list_view=='userlist'">
+                <li>
+                    <input type="checkbox" v-model="toggle_contact"/>
+                    <img style="width: 40px;" src="/html/image/user.jpg " alt=""/>
+                    <span style="padding-left: 2em;color: blue;">全选</span>
+                </li>
+                <li v-for="contact in contact_list">
+                    <input type="checkbox" :value="contact" v-model="selected_contact"/>
+                    <img style="width: 40px;" :src="'/proxy?url='+encodeURIComponent(contact.HeadImgUrl) " alt=""/>
+                    <span v-text="contact.NickName" style="padding-left: 2em;"></span>
+                </li>
+            </ul>
+            <ul class="user-list" v-show="list_view=='userfilter'">
+                <li>
+                    <input type="checkbox" v-model="toggle_city"/>
+                    <span style="color: blue;">全选</span>
+                </li>
+                <li v-for="city in city_list">
+                    <input type="checkbox" :value="city" v-model="selected_city" @change="check_city(city,$event)"/>
+                    <span v-text="city"></span>
+                </li>
+            </ul>
+            <ul class="user-list" v-show="list_view=='group'">
+                <li>
+                    <input type="checkbox"/>
+                    <span>全选</span>
+                </li>
+                <li v-for="contact in group_list">
+                    <input type="checkbox" :value="contact" v-model="selected_group"/>
+                    <img style="width: 40px;" :src="'/proxy?url='+encodeURIComponent(contact.HeadImgUrl) " alt=""/>
+                    <span v-text="contact.NickName" style="padding-left: 2em;"></span>
                 </li>
             </ul>
         </div>
 
-        <ul >
-            <li v-for="contact in contact_list">
-                <img style="width: 30px;" :src="'/proxy?url='+encodeURIComponent(contact.HeadImgUrl) " alt=""/>
-                <span v-text="contact.NickName"></span>
-            </li>
-        </ul>
+        <div class="item" id="right">
+            <div id="head">
+                <div>
+                    <button @click="start()">新登陆</button>
+                    <button @click="get_state()">get state</button>
+                    <button @click="send()">发送</button>
+                    <button @click="logout()">登出用户</button>
+                </div>
+                <div><img :src="img_url" alt=""/></div>
+            </div>
+
+            <ul class="msg">
+                <li v-for="line in normed_msg">
+                    <span v-text="line"></span>
+                </li>
+            </ul>
+        </div>
 
 
     </div>
@@ -99,10 +233,47 @@
 
 
 <style>
+    html,body{
+        height:100%;
+    overflow: hidden;}
+    #there{
+        padding: 2em;
+    }
     .content{
-        display: flex;
+        width: 100%;
+        height: 100%;
+        padding: 2em;
+    }
+    .item{
+        display: inline-block;
+        width: 48%;
+        height: 100%;
+        vertical-align: top;
+
+    }
+    .user-list{
+        height: 90%;
+        overflow: auto;
+        padding-left: 0;
+    }
+    .user-list li{
+
+        padding-top: 1em;
+        list-style: none;
+    }
+    .user-list li:nth-child(odd){
+        background-color: #f4f4f2;
+    }
+    .msg{
+        height: 60%;
+        overflow: auto;
     }
 </style>
 
 </body>
+
+<script>
+    msg=["[INFO] Please use WeChat to scan the QR code .","\n","[ERROR] WeChat login timeout. retry in 1 secs later...","\n","[INFO] Please confirm to login .","\n","[INFO] Web WeChat login succeed .","\n","[INFO] Web WeChat init succeed .","\n","[INFO] Get 36 contacts","\n","[INFO] Start to process messages .","\n","[ERROR] Web WeChat run failed --> object of type 'bool' has no len()","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n","proxy","\n"]
+    contact_list=[{"UserName":"@455371522506a66a664184d4c1fcc90a4b5c0bbcebd69dc497552dc4a7930086","City":"眉山","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"yirou","RemarkPYInitial":"","Sex":2,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"","PYInitial":"YIROU","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":135201,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"Dff","ContactFlag":3,"NickName":"yirou","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=626551827&username=@455371522506a66a664184d4c1fcc90a4b5c0bbcebd69dc497552dc4a7930086&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@7a87e92c659104b6fdf474872d27bee52722dc8386e83550869ce0dbdb984c52","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"chenchen","RemarkPYInitial":"HGM","Sex":0,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"何姑妈","PYInitial":"CC","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4133,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"陈晨","RemarkPYQuanPin":"heguma","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=632201618&username=@7a87e92c659104b6fdf474872d27bee52722dc8386e83550869ce0dbdb984c52&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@55e09f6a2c208ff35c51ecb6c2d33a83","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"lijiang","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"lj4","RemarkName":"","PYInitial":"LJ","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":13415,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"开心每一天","ContactFlag":3,"NickName":"黎江","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=643892663&username=@55e09f6a2c208ff35c51ecb6c2d33a83&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@0a4fe7f99ad5393d8f7525e167495dcecc06edb30a4477600d82894895b15b59","City":"眉山","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"si","RemarkPYInitial":"HSY","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"何诗雅","PYInitial":"S","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":102437,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"**斯@==-","RemarkPYQuanPin":"heshiya","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657061635&username=@0a4fe7f99ad5393d8f7525e167495dcecc06edb30a4477600d82894895b15b59&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@2c615aab12fdce4a1f2db2d11ac4451f05fd1900ef15d11be3d61d75f5ef1bbc","City":"眉山","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"zhou","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"","PYInitial":"Z","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4133,"SnsFlag":0,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"周","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657061873&username=@2c615aab12fdce4a1f2db2d11ac4451f05fd1900ef15d11be3d61d75f5ef1bbc&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@3c82025fcf6cea2fbdae719585b1ee9309cb7b1174fd347328db478d0fa65591","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"xia","RemarkPYInitial":"","Sex":2,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"","PYInitial":"X","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4133,"SnsFlag":0,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"尽力就好","ContactFlag":3,"NickName":"霞","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=643891954&username=@3c82025fcf6cea2fbdae719585b1ee9309cb7b1174fd347328db478d0fa65591&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@a4ff5a5d8c70dc10320863ea2ddf43ed425508123b882bc3e4c46d37db3f0d5c","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"linxiaocong","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"","PYInitial":"LXC","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4165,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"我要变肌肉男","ContactFlag":3,"NickName":"林小聪","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657061941&username=@a4ff5a5d8c70dc10320863ea2ddf43ed425508123b882bc3e4c46d37db3f0d5c&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@c0319d7c3ecb4f50eed2c375e49bf8303304b1f3dda63146fff50018d0b8229c","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"hejianming","RemarkPYInitial":"","Sex":0,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"","PYInitial":"HJM","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4133,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"何建明","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657064763&username=@c0319d7c3ecb4f50eed2c375e49bf8303304b1f3dda63146fff50018d0b8229c&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@19775d582b7d92e2a589215d374cb4ccbc1970b3006d4d62cdfe9cb347e02c2b","City":"阿坝","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"liruiyuan","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"","PYInitial":"LRY","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":103015,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"李瑞源","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657070130&username=@19775d582b7d92e2a589215d374cb4ccbc1970b3006d4d62cdfe9cb347e02c2b&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@7a6fa4323c3027f668307aa95f006fbb33dfd1b1d7ee748f0efa203319b8dfb3","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"liangxiaolong","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"","PYInitial":"LXL","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":102437,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"没有爱与恨，只有成与败。","ContactFlag":3,"NickName":"梁小龙","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670432405&username=@7a6fa4323c3027f668307aa95f006fbb33dfd1b1d7ee748f0efa203319b8dfb3&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@93941cc21d04b35592f56d773d0acb3b5bfa1fa727b541c8958135a4b9c15fb0","City":"眉山","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"yueyuema","RemarkPYInitial":"","Sex":2,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"","PYInitial":"YYM","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":102439,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"好","ContactFlag":3,"NickName":"乐乐妈","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670433303&username=@93941cc21d04b35592f56d773d0acb3b5bfa1fa727b541c8958135a4b9c15fb0&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@44661a894111d81a10d62eef8e0f2405db8d12e650e23698f8c4e645bfffa2a3","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"keke","RemarkPYInitial":"","Sex":0,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"","PYInitial":"KK","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":135205,"SnsFlag":0,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"可可","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670433531&username=@44661a894111d81a10d62eef8e0f2405db8d12e650e23698f8c4e645bfffa2a3&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@785730ca6bd653f7b5f7efab85327b01669b48f05bf1c7a2809c0d0e5899e587","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"zhouzhou","RemarkPYInitial":"LN","Sex":0,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"老娘","PYInitial":"ZZ","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4133,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"周周","RemarkPYQuanPin":"laoniang","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=646702233&username=@785730ca6bd653f7b5f7efab85327b01669b48f05bf1c7a2809c0d0e5899e587&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@c2175a3275752fb4d290bdc25b58af75","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"Joshua","RemarkPYInitial":"HW","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"hua","RemarkName":"黄伟","PYInitial":"JOSHUA","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4294055,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"Joshua","RemarkPYQuanPin":"huangwei","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670434141&username=@c2175a3275752fb4d290bdc25b58af75&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@0a972415db56a4dc2d2b742977cb339a5ba94fa5983d3d8b85455d3acc0599dc","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"dingdajie","RemarkPYInitial":"DES","Sex":0,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"丁二婶","PYInitial":"DDJ","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":102439,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"丁大姐","RemarkPYQuanPin":"dingershen","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657063715&username=@0a972415db56a4dc2d2b742977cb339a5ba94fa5983d3d8b85455d3acc0599dc&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@e55965d5927da119aac1e2fec873145c","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"fengertingle","RemarkPYInitial":"LJ","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"fen","RemarkName":"廖军","PYInitial":"FETL","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":102501,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"风儿停了","RemarkPYQuanPin":"liaojun","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670431629&username=@e55965d5927da119aac1e2fec873145c&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@6d3098f8137b637e6e8e95af10936ce8","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"daozujuchang","RemarkPYInitial":"TXC","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"fut","RemarkName":"田相城","PYInitial":"DZJC","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":70183,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"至人无己，神人无功，圣人无名","ContactFlag":3,"NickName":"道阻且长","RemarkPYQuanPin":"tianxiangcheng","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657065078&username=@6d3098f8137b637e6e8e95af10936ce8&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@98348f389273ed5beb11c101b438b94b1a1857ec2e6d86c91317f9ff00124a4f","City":"乐山","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"yingxiongshangzuo","RemarkPYInitial":"DML","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"戴梦良","PYInitial":"YXSZ","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":33788005,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"暂无","ContactFlag":3,"NickName":"英雄上座","RemarkPYQuanPin":"daimengliang","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657069100&username=@98348f389273ed5beb11c101b438b94b1a1857ec2e6d86c91317f9ff00124a4f&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@7790014fdaf76a748cdc412782146463","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"ganxin","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"kak","RemarkName":"","PYInitial":"GX","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":110757,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"我们都在奔跑","ContactFlag":3,"NickName":"甘心","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670434832&username=@7790014fdaf76a748cdc412782146463&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@ff08c839f4ea1776207aa3c5a2401f09112275e2fdccfc6762b231fef989c77c","City":"长寿","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"donglanzhongshanziqi","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"重庆","KeyWord":"","RemarkName":"","PYInitial":"DLZSZQ","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":65637,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"东揽钟山紫气","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670436532&username=@ff08c839f4ea1776207aa3c5a2401f09112275e2fdccfc6762b231fef989c77c&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@318afdb5f8f52aed3779ba0a2786cabe","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"moore","RemarkPYInitial":"HY","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"hoo","RemarkName":"何宇","PYInitial":"MOORE","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":100583,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"我的光茫要如同你照耀我的那般闪耀！","ContactFlag":8195,"NickName":"moore","RemarkPYQuanPin":"heyu","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=626551969&username=@318afdb5f8f52aed3779ba0a2786cabe&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@8aea71f11e15ab879b065509d35db0333d5b74ed6967f5780e0ecb69964b034b","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"yishouzhitian","RemarkPYInitial":"BLJ","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"白良俊","PYInitial":"YSZT","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4133,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"以手指天","RemarkPYQuanPin":"bailiangjun","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=635461994&username=@8aea71f11e15ab879b065509d35db0333d5b74ed6967f5780e0ecb69964b034b&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@ef953c4b940a2bb29b7ed0ee1626097f56f830814191bf604e221de00ffde799","City":"大渡口","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"xinjingziran","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"重庆","KeyWord":"","RemarkName":"","PYInitial":"XJZR","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":135269,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"心境自然","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670438954&username=@ef953c4b940a2bb29b7ed0ee1626097f56f830814191bf604e221de00ffde799&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@e21a45119d55e042da99ee0a82306a9d","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"hax","RemarkPYInitial":"HC","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"hch","RemarkName":"黄川","PYInitial":"HAX","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":241767,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"never say never","ContactFlag":3,"NickName":"hax","RemarkPYQuanPin":"huangchuan","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670439255&username=@e21a45119d55e042da99ee0a82306a9d&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@3012a31e74175987fa09861ab5680a55c98b736bd5b9e6e791392577a8e8f136","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"youguaiguaideyeye","RemarkPYInitial":"","Sex":0,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"","PYInitial":"YGGDYY","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4133,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"悠乖乖的爷爷","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670439957&username=@3012a31e74175987fa09861ab5680a55c98b736bd5b9e6e791392577a8e8f136&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@3e6095b4f72b0bbaecb30907b93ae89b","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"zhangqingjun","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"上海","KeyWord":"wei","RemarkName":"","PYInitial":"ZQJ","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":102439,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"张庆军","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670438282&username=@3e6095b4f72b0bbaecb30907b93ae89b&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@93c0699e6564fb6e9fde27e561e0a4172196357991fbb3875adaa7afb0a6350c","City":"惠州","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"MrDeng","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"广东","KeyWord":"","RemarkName":"","PYInitial":"MRDENG","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4669,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"不抱怨，不埋怨，努力争取，love life。","ContactFlag":3,"NickName":"MrDeng","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=657067083&username=@93c0699e6564fb6e9fde27e561e0a4172196357991fbb3875adaa7afb0a6350c&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@51f128d84ce2866bda6a9cbb58b96853","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"Ronny","RemarkPYInitial":"","Sex":0,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"zha","RemarkName":"","PYInitial":"RONNY","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":229887,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"","ContactFlag":3,"NickName":"Ronny","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670441231&username=@51f128d84ce2866bda6a9cbb58b96853&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@f9b8efc1babf4c1f5643acc0a9407337cbfbc5849bee147dfbf03b551fc21c21","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"xia","RemarkPYInitial":"","Sex":2,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"","PYInitial":"X","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4129,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"尽力就好","ContactFlag":3,"NickName":"霞","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=643892650&username=@f9b8efc1babf4c1f5643acc0a9407337cbfbc5849bee147dfbf03b551fc21c21&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@90db316647bcdae6ed443d680e6db5e4","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"snow","RemarkPYInitial":"","Sex":2,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"hur","RemarkName":"","PYInitial":"SNOW","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":2147743847,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"True love is love for humanity……","ContactFlag":3,"NickName":"snow","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670441771&username=@90db316647bcdae6ed443d680e6db5e4&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@665ee77eeaa0618bebbee814580f47d86b83756881dc1279cc678f8b9770da89","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"nihaowoshiluobu","RemarkPYInitial":"","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"","PYInitial":"NHWSLB","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":4298855,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"事在人为休言万般皆是命，境由心造退后一步自然宽。","ContactFlag":3,"NickName":"你好，我是萝卜~","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670441942&username=@665ee77eeaa0618bebbee814580f47d86b83756881dc1279cc678f8b9770da89&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@a5823c7c5ad264854f7e7c3ef4910c1291c994a4e0a85f9de90e09e89111b6dd","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"spanclassemojiemoji1f388spanAnAn","RemarkPYInitial":"","Sex":2,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"","PYInitial":"SPANCLASSEMOJIEMOJI1F388SPANANAN","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":102503,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"•﹏•。   <span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span><span class=\"emoji emoji2764\"></span>","ContactFlag":3,"NickName":"<span class=\"emoji emoji1f388\"></span>AnAn","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670443053&username=@a5823c7c5ad264854f7e7c3ef4910c1291c994a4e0a85f9de90e09e89111b6dd&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@14567b43d179081b05723f5df13023dd","City":"绵阳","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"Kliyes","RemarkPYInitial":"JY","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"kli","RemarkName":"敬洋","PYInitial":"KLIYES","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":33764455,"SnsFlag":49,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"我不是坏人。。。","ContactFlag":3,"NickName":"Kliyes","RemarkPYQuanPin":"jingyang","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670444229&username=@14567b43d179081b05723f5df13023dd&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@27250850e0717b14596b675f7842da5fe3d930f0b69acd4971c48a2e8d58b6ab","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"spanclassemojiemoji1f531span","RemarkPYInitial":"","Sex":2,"AppAccountFlag":0,"VerifyFlag":0,"Province":"","KeyWord":"","RemarkName":"","PYInitial":"SPANCLASSEMOJIEMOJI1F531SPAN","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":102501,"SnsFlag":1,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"❥天上不会掉馅饼  \n      大家撸起袖子加油干","ContactFlag":3,"NickName":"<span class=\"emoji emoji1f531\"></span>","RemarkPYQuanPin":"","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670442313&username=@27250850e0717b14596b675f7842da5fe3d930f0b69acd4971c48a2e8d58b6ab&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@41c2c6ce7a866cdc73805230b977fdabba089a1870800c74e5a6f70d644b682e","City":"成都","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"Mrsmonkeyspanclassemojiemoji1f61aspan","RemarkPYInitial":"ZY","Sex":2,"AppAccountFlag":0,"VerifyFlag":0,"Province":"四川","KeyWord":"","RemarkName":"周燕","PYInitial":"MRSMONKEYSPANCLASSEMOJIEMOJI1F61ASPAN","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":33689701,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"青春若有张不老的脸。。。","ContactFlag":3,"NickName":"Mrs.monkey<span class=\"emoji emoji1f61a\"></span>","RemarkPYQuanPin":"zhouyan","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670439921&username=@41c2c6ce7a866cdc73805230b977fdabba089a1870800c74e5a6f70d644b682e&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0},{"UserName":"@72f088b166dea69a1e9b1e57ca6e125f","City":"","DisplayName":"","UniFriend":0,"MemberList":[],"PYQuanPin":"HK","RemarkPYInitial":"HK","Sex":1,"AppAccountFlag":0,"VerifyFlag":0,"Province":"Auckland","KeyWord":"bi_","RemarkName":"何凯","PYInitial":"HK","IsOwner":0,"ChatRoomId":0,"HideInputBarFlag":0,"EncryChatRoomId":"","AttrStatus":67647,"SnsFlag":17,"MemberCount":0,"OwnerUin":0,"Alias":"","Signature":"上善若水 焚心取暖 正直 勤奋 聪明","ContactFlag":3,"NickName":"HK","RemarkPYQuanPin":"hekai","HeadImgUrl":"/cgi-bin/mmwebwx-bin/webwxgeticon?seq=670439925&username=@72f088b166dea69a1e9b1e57ca6e125f&skey=@crypt_8105ceef_03975da9c02e2f97ece10f084a3cf086","Uin":0,"StarFriend":0,"Statues":0}]
+</script>
 </html>

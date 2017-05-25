@@ -7,9 +7,11 @@ from BaseHTTPServer import HTTPServer,BaseHTTPRequestHandler
 import wxpush
 import urlparse
 
+wxprefix=['https://wx2.qq.com','https://wx.qq.com']
+prefix_index=0
 class HybirdServer(BaseHTTPRequestHandler):  
     def do_GET(self):  
-  
+        global prefix_index
         o=urlparse.urlparse(self.path)
         args=dict(urlparse.parse_qsl(o.query))
         data=''
@@ -21,9 +23,12 @@ class HybirdServer(BaseHTTPRequestHandler):
         data=''
         
         if path=='/proxy':
-            print('proxy')
             img_url = urlparse.unquote(args['url'])
-            rt=wxpush.bot.session.get('https://wx2.qq.com'+img_url)
+            rt=wxpush.bot.session.get(wxprefix[prefix_index]+img_url)
+            if not rt.content:
+                prefix_index = 0 if prefix_index==1 else 1
+                rt=wxpush.bot.session.get(wxprefix[prefix_index]+img_url)
+                
             for k,v in rt.headers.items():
                 self.send_header(k,v)
             data=rt.content
