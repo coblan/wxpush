@@ -18,21 +18,24 @@ class HybirdServer(BaseHTTPRequestHandler):
         self.send_response(200)  
         self.send_header("Welcome", "Contect") 
         
-        if path.endswith('png') or path=='/proxy':
-            self.send_header('content-type','image/png')        
-        self.end_headers()  
+        data=''
         
         if path=='/proxy':
             print('proxy')
             img_url = urlparse.unquote(args['url'])
             rt=wxpush.bot.session.get('https://wx2.qq.com'+img_url)
+            for k,v in rt.headers.items():
+                self.send_header(k,v)
             data=rt.content
-            self.wfile.write(data)
         else:
+            if path.endswith('png'):
+                self.send_header('content-type','image/png') 
             with open('.'+path,'rb') as f:
-                data=f.read()
-            self.wfile.write(data)
-
+                data=f.read()        
+        self.end_headers()  
+        
+        self.wfile.write(data)
+        
     
     def do_POST(self):
 

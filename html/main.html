@@ -70,20 +70,28 @@
 
 <div id="there">
     <div class="content">
-        <button @click="start()">启动</button>
-        <button>刷新二维码</button>
-        <button @click="get_state()">get state</button>
-        <img :src="img_url" alt=""/>
-        <span v-text="name"></span>
+
+        <div>
+            <div>
+                <button @click="start()">启动</button>
+                <button @click="get_state()">get state</button>
+            </div>
+            <div><img :src="img_url" alt=""/></div>
+            <ul >
+                <li v-for="item in msg">
+                    <span v-text="item"></span>
+                </li>
+            </ul>
+        </div>
+
         <ul >
-            <li v-for="item in msg">
-                <span v-text="item"></span>
+            <li v-for="contact in contact_list">
+                <img style="width: 30px;" :src="'/proxy?url='+encodeURIComponent(contact.HeadImgUrl) " alt=""/>
+                <span v-text="contact.NickName"></span>
             </li>
         </ul>
-        <div v-for="contact in contact_list">
-            <span>ss</span>
-            <img :src="'/proxy?url='+encodeURIComponent(contact.HeadImgUrl) " alt=""/>
-        </div>
+
+
     </div>
 
 

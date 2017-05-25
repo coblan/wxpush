@@ -14,7 +14,7 @@ operations=deque([])
 
 def start():
     global state
-    thread.start_new_thread (wxpush.main,args=(state,operations))
+    thread.start_new_thread (wxpush.main,(state,operations))
     return {'status':'success'}
 
 def get_state():

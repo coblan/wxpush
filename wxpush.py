@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import json
 import sys
 from wxbot.wxbot import WXBot
+import time
 
 class Mystd(object):
     
@@ -24,6 +25,7 @@ class MyWXBot(WXBot,object):
     def proc_msg(self):
         self.state.append({'key':'contact_list','value':self.contact_list})
         while True:
+            time.sleep(1)
             while len(self.operations > 0):
                 operation = self.operations.popleft()
                 pass
