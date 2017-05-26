@@ -13,6 +13,9 @@
 
     <script src='/html/lib/exfun.js'></script>
     <script src='/html/lib/uis.pack.js'></script>
+
+    <link rel="stylesheet" href="/html/lib/emoj.css">
+    <!--<script src="//twemoji.maxcdn.com/twemoji.min.js"></script>-->
     <!--<script src='{% static "js/uis.pack.js" %}'></script>-->
     <!--<script src='{% static "js/fields.pack.js?t=20170522" %}'></script>-->
     <!--<link href="{% static 'css/ui.css'%}" rel="stylesheet">-->
@@ -30,7 +33,7 @@
                 name:'hell my world',
                 msg:[],// msg,
                 md5:'',
-                contact_list:[] , //contact_list,
+                contact_list:[], //contact_list,
                 group_list:[],
                 list_view:'userlist',
                 selected_contact:[],
@@ -39,6 +42,13 @@
                 toggle_city:false,
                 toggle_group:false,
                 selected_city:[],
+                crt_view:'main',
+                cdkey:'',
+                try_user:false,
+                check_msg:'',
+                can_send:false,
+                can_start:false,
+                ex:ex,
             },
             //https://wx2.qq.com
             computed:{
@@ -85,8 +95,28 @@
                 setInterval(function(){
                     self.get_state()
                 },2000)
+                self.get_check()
             },
             methods:{
+                get_check:function(){
+                    var self=this
+                  var post_data=[{fun:'check',checkstring:this.cdkey}]
+                    $.post('',JSON.stringify(post_data),function(resp){
+                        if(resp.status!='success'){
+                            self.crt_view='check'
+                        }else{
+                            self.crt_view='main'
+                        }
+                        if(resp.try_user){
+                            self.try_user=true
+                        }else{
+                            self.try_user=false
+                        }
+                        if(resp.msg){
+                            self.check_msg=resp.msg
+                        }
+                    })
+                },
                 start:function(){
                     var self=this
                     self.msg=[]
@@ -94,7 +124,6 @@
                     self.group_list=[]
                     self.selected_contact=[]
                     self.selected_group=[]
-
                     var post_data=[{fun:'end_last_bot'},{fun:'start'}]
                     $.post('',JSON.stringify(post_data),function(resp){
 //                        alert(resp)
@@ -113,6 +142,10 @@
                                 self.contact_list=item.value
                             }else if(item.key=='group_list'){
                                 self.group_list=item.value
+                            }else if(item.key=='login'){
+                                self.can_send=item.value
+                            }else if(item.key=='bot'){
+                                self.can_start = !item.value
                             }
                         })
                     })
@@ -133,17 +166,26 @@
 
                 },
                 send:function(){
+                    var self=this
+                    self.can_send=false
                     var contact_list=this.selected_contact.concat(this.selected_group)
                     var post_data=[{fun:'send',contact_list:contact_list}]
                     $.post('',JSON.stringify(post_data),function(resp){
-                        alert('ok')
+                        self.can_send=false
                     })
                 },
                 logout:function(){
+                    this.can_send=false
                     var post_data=[{fun:'end_last_bot'}]
                     $.post('',JSON.stringify(post_data),function(resp){
-                        alert('ok')
                     })
+                },
+                toggle:function(obj,array){
+                    if(ex.isin(obj,array)){
+                        ex.remove(array,obj)
+                    }else{
+                        array.push(obj)
+                    }
                 }
             }
         })
@@ -157,12 +199,15 @@
 <div id="there" style="width: 100%;height: 100%;">
 
 
-    <div class="content">
+    <div class="content" v-show="crt_view=='main'">
 
         <div class="item">
             <div style="float: right;padding:0.5em 1em;">
-                <span>选中联系人:</span>
+                <span>选中(联系人:</span>
                 <span v-text="selected_contact.length"></span>
+                <span>)(群:</span>
+                <span v-text="selected_group.length"></span>
+                <span>)</span>
             </div>
 
             <ul class="nav nav-tabs">
@@ -172,16 +217,16 @@
             </ul>
 
 
-            <ul class="user-list" v-show="list_view=='userlist'">
-                <li>
-                    <input type="checkbox" v-model="toggle_contact"/>
+            <ul class="user-list contact" v-show="list_view=='userlist'">
+                <li :class="{'selected-contact':toggle_contact}" @click="toggle_contact= !toggle_contact">
+                    <input @click.stop="" type="checkbox" v-model="toggle_contact"/>
                     <img style="width: 40px;" src="/html/image/user.jpg " alt=""/>
                     <span style="padding-left: 2em;color: blue;">全选</span>
                 </li>
-                <li v-for="contact in contact_list">
-                    <input type="checkbox" :value="contact" v-model="selected_contact"/>
+                <li v-for="contact in contact_list" :class="{'selected-contact':ex.isin(contact,selected_contact)}" @click="toggle(contact,selected_contact)">
+                    <input @click.stop="" type="checkbox" :value="contact" v-model="selected_contact"/>
                     <img style="width: 40px;" :src="'/proxy?url='+encodeURIComponent(contact.HeadImgUrl) " alt=""/>
-                    <span v-text="contact.NickName" style="padding-left: 2em;"></span>
+                    <span v-html="contact.NickName" style="padding-left: 2em;"></span>
                 </li>
             </ul>
             <ul class="user-list" v-show="list_view=='userfilter'">
@@ -209,13 +254,17 @@
 
         <div class="item" id="right">
             <div id="head">
-                <div>
-                    <button @click="start()">新登陆</button>
-                    <button @click="get_state()">get state</button>
-                    <button @click="send()">发送</button>
-                    <button @click="logout()">登出用户</button>
+                <div style="text-align: center">
+                    <div class="btn-group btn-group-lg" role="group" aria-label="...">
+                        <button type="button" class="btn btn-default" @click="start()" :disabled="!can_start">刷新二维码</button>
+                        <!--<button @click="get_state()">get state</button>-->
+                        <button type="button" class="btn btn-success" @click="send()" :disabled="!can_send">发送</button>
+                        <button type="button" class="btn btn-default" @click="logout()">登出用户</button>
+                        <button v-if="try_user" type="button" class="btn btn-default" @click="crt_view='check'">输入注册码</button>
+                    </div>
                 </div>
-                <div><img :src="img_url" alt=""/></div>
+
+                <div style="text-align: center"><img :src="img_url" alt=""/></div>
             </div>
 
             <ul class="msg">
@@ -229,13 +278,24 @@
     </div>
 
 
+    <div v-show="crt_view=='check'" style="text-align: center">
+        <div class="form-group" style="width:30em;display: inline-block;">
+            <label for="exampleInputName2">请输入合法的激活码</label>
+            <input type="text" class="form-control" id="exampleInputName2" placeholder="激活码" v-model="cdkey">
+        </div>
+        <button type="submit" class="btn btn-default" @click="get_check()">确定</button>
+        <div style="color: red" v-text="check_msg">无效注册码</div>
+    </div>
+
 </div>
 
 
 <style>
     html,body{
         height:100%;
-    overflow: hidden;}
+    overflow: hidden;
+        background: none;
+    }
     #there{
         padding: 2em;
     }
@@ -261,12 +321,27 @@
         padding-top: 1em;
         list-style: none;
     }
-    .user-list li:nth-child(odd){
+    .user-list.contact li{
+        display: inline-block;
+        width: 48%;
+    }
+
+    .user-list.contact li:nth-child(4n+1),
+    .user-list.contact li:nth-child(4n+2){
+        background-color: white;
+    }
+    .user-list.contact li:nth-child(4n+3),
+    .user-list.contact li:nth-child(4n){
         background-color: #f4f4f2;
     }
+
+
     .msg{
         height: 60%;
         overflow: auto;
+    }
+    .selected-contact{
+        background-color: #c2f1ff !important;
     }
 </style>
 

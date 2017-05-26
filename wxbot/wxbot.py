@@ -1293,7 +1293,9 @@ class WXBot:
                 tip = 1
                 retry_time -= 1
                 time.sleep(try_later_secs)
-
+            
+            if  getattr(self,'status',None) == 'wait4loginout':  # add by heyulin
+                return
         return code
 
     def login(self):

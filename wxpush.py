@@ -43,19 +43,23 @@ class MyWXBot(WXBot,object):
         self.state=state
         self.operations=operations
         sys.stdout=Mystd(self.state)
+        
+  
     
     def proc_msg(self):
+        print('登陆成功')
+        self.state.append({'key':'login','value':True})
         self.test_sync_check()
         self.status = 'loginsuccess'  #WxbotManage使用
         
-        group_list=self.ex_group_list
+        group_list=self.ex_group_list + self.group_list
         self.state.append({'key':'contact_list','value':self.contact_list})
         self.state.append({'key':'group_list','value':group_list})
         
         
         while True:
             if self.status == 'wait4loginout':  #WxbotManage使用
-                return 
+                break 
             
             #while len(self.operations > 0):
                 #operation = self.operations.popleft() # 还没弄
@@ -109,11 +113,12 @@ class MyWXBot(WXBot,object):
             check_time = time.time() - check_time
             if check_time < 0.8:
                 time.sleep(1 - check_time)
-                
+
     
     def handle_msg_all(self, msg):
-        if msg['msg_type_id'] == 4 and msg['content']['type'] == 0:
-            self.send_msg_by_uid(u'hi', msg['user']['id'])
+        pass
+        #if msg['msg_type_id'] == 4 and msg['content']['type'] == 0:
+            #self.send_msg_by_uid(u'hi', msg['user']['id'])
             #self.send_img_msg_by_uid("img/1.png", msg['user']['id'])
             #self.send_file_msg_by_uid("img/1.png", msg['user']['id'])
 '''
@@ -126,9 +131,10 @@ bot=None
 def main(state,operations):
     global bot
     bot = MyWXBot(state,operations)
-    bot.DEBUG = True
+    #bot.DEBUG = True
     bot.conf['qr'] = 'png'
     bot.run()
+    print('上次用户监听循环退出/用户退出成功')
 
 
 if __name__ == '__main__':
