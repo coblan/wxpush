@@ -6,15 +6,23 @@ os.environ["path"] += os.path.join(os.getcwd(), "dll")
 sys.path.append(os.path.join(os.getcwd(), "dll"))
 
 from PyQt4.QtGui import QApplication,QWidget,QIcon
-from PyQt4.QtCore import QUrl,QObject,pyqtSlot, pyqtProperty
+from PyQt4.QtCore import QUrl,QObject,pyqtSlot, pyqtProperty,QSharedMemory
 from PyQt4.QtWebKit import QWebView
 import thread
 import server
 os.environ["REQUESTS_CA_BUNDLE"] = os.path.join(os.getcwd(), "cacert.pem")
 
 
-if __name__ =='__main__':
+def main():
     app = QApplication(sys.argv)
+    
+    shared= QSharedMemory("wepush")
+    if shared.attach():
+        return 0
+    shared.create(1) 
+    
+
+    
     thread.start_new_thread (server.start_server,(28289,))
     win =QWebView()
     win.setWindowIcon(QIcon( './html/wechat.ico'))
@@ -22,4 +30,8 @@ if __name__ =='__main__':
     win.setWindowTitle('微信群发工具V1.0')
     win.load( QUrl('http://127.0.0.1:28289/html/main.html'))
     win.show()
-    sys.exit(app.exec_())    
+    return sys.exit(app.exec_())    
+
+if __name__ =='__main__':
+    main()
+    

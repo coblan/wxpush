@@ -30,19 +30,25 @@
         new Vue({
             el:'#there',
             data:{
-                name:'hell my world',
+                list_view:'userlist',
+                crt_view:'main',
+
                 msg:[],// msg,
                 md5:'',
                 contact_list:[], //contact_list,
                 group_list:[],
-                list_view:'userlist',
+
                 selected_contact:[],
                 selected_group:[],
+
                 toggle_contact:false,
                 toggle_city:false,
                 toggle_group:false,
+
                 selected_city:[],
-                crt_view:'main',
+
+                my_account:null,
+                has_qr:false,
                 cdkey:'',
                 try_user:false,
                 check_msg:'',
@@ -89,6 +95,21 @@
                         this.selected_contact=[]
                     }
                 },
+                toggle_group:function(v){
+                  if(v){
+                      this.selected_group=this.group_list.slice()
+                  }else{
+                      this.selected_group=[]
+                  }
+                },
+                msg:function(){
+                    Vue.nextTick(function(){
+                        setTimeout(function(){
+                            $('.msg').scrollTop($('.msg').height())
+                        },1000)
+
+                    })
+                }
             },
             mounted:function(){
                 var self=this
@@ -135,7 +156,9 @@
                     $.post('',JSON.stringify(post_data),function(resp){
                         ex.each(resp,function(item){
                             if(item.key=='msg'){
+
                                 self.msg.push(item.value)
+
                             }else if(item.key=='md5'){
                                 self.md5=item.value
                             }else if(item.key=='contact_list'){
@@ -146,6 +169,15 @@
                                 self.can_send=item.value
                             }else if(item.key=='bot'){
                                 self.can_start = !item.value
+                                if(!item.value){
+                                    self.clear_state()
+                                }
+                            }else if(item.key=='my_account'){
+                                Vue.set(self,'my_account',item.value)
+                                self.has_qr=false
+//                                self.my_account=item.value
+                            }else if(item.key=='gencode'){
+                                self.has_qr=true
                             }
                         })
                     })
@@ -175,8 +207,10 @@
                     })
                 },
                 logout:function(){
-                    this.can_send=false
+                    this.clear_state()
+
                     var post_data=[{fun:'end_last_bot'}]
+
                     $.post('',JSON.stringify(post_data),function(resp){
                     })
                 },
@@ -186,6 +220,11 @@
                     }else{
                         array.push(obj)
                     }
+                },
+                clear_state:function(){
+                    this.can_send=false
+                    this.has_qr=false
+                    this.my_account=null
                 }
             }
         })
@@ -241,7 +280,7 @@
             </ul>
             <ul class="user-list" v-show="list_view=='group'">
                 <li>
-                    <input type="checkbox"/>
+                    <input type="checkbox" v-model="toggle_group"/>
                     <span>全选</span>
                 </li>
                 <li v-for="contact in group_list">
@@ -264,7 +303,18 @@
                     </div>
                 </div>
 
-                <div style="text-align: center"><img :src="img_url" alt=""/></div>
+                <div style="text-align: center;" >
+                    <div :class="['headimg',{blur:!has_qr}]" v-if="!my_account">
+                        <img :src="img_url" width="100%" alt=""/>
+                    </div>
+
+                    <div v-else class="headimg" style="padding: 1em;">
+                        <img :src="'/proxy?url='+encodeURIComponent(my_account.HeadImgUrl) " alt=""/><br/>
+
+                        <span v-text="my_account.NickName"></span>
+                    </div>
+
+                </div>
             </div>
 
             <ul class="msg">
@@ -291,6 +341,14 @@
 
 
 <style>
+    .headimg{
+        display: inline-block;
+        height: 20em;
+        width: 20em;
+    }
+    .blur{
+        opacity: 0.3;
+    }
     html,body{
         height:100%;
     overflow: hidden;
@@ -317,10 +375,13 @@
         padding-left: 0;
     }
     .user-list li{
-
         padding-top: 1em;
         list-style: none;
     }
+    .user-list li:nth-child(odd){
+        background-color: #f4f4f2;
+    }
+
     .user-list.contact li{
         display: inline-block;
         width: 48%;
@@ -335,9 +396,12 @@
         background-color: #f4f4f2;
     }
 
-
+    #head{
+        height: 43%;
+        overflow: auto;
+    }
     .msg{
-        height: 60%;
+        height: 55%;
         overflow: auto;
     }
     .selected-contact{

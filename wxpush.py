@@ -43,8 +43,7 @@ class MyWXBot(WXBot,object):
         self.state=state
         self.operations=operations
         sys.stdout=Mystd(self.state)
-        
-  
+           
     
     def proc_msg(self):
         print('登陆成功')
@@ -55,6 +54,7 @@ class MyWXBot(WXBot,object):
         group_list=self.ex_group_list + self.group_list
         self.state.append({'key':'contact_list','value':self.contact_list})
         self.state.append({'key':'group_list','value':group_list})
+        self.state.append({'key':'my_account','value':self.my_account})
         
         
         while True:

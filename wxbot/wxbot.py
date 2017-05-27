@@ -1180,7 +1180,10 @@ class WXBot:
             self.get_uuid()
             self.gen_qr_code(os.path.join(self.temp_pwd,'wxqr.png'))
             print '[INFO] Please use WeChat to scan the QR code .'
-
+            
+            # heyulin
+            self.state.append({'key':'gencode','value':True})
+            
             result = self.wait4login()
             if result != SUCCESS:
                 print '[ERROR] Web WeChat login failed. failed code=%s' % (result,)
