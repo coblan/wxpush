@@ -171,7 +171,7 @@
                     var contact_list=this.selected_contact.concat(this.selected_group)
                     var post_data=[{fun:'send',contact_list:contact_list}]
                     $.post('',JSON.stringify(post_data),function(resp){
-                        self.can_send=false
+                        self.can_send=true
                     })
                 },
                 logout:function(){

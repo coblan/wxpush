@@ -15,7 +15,7 @@ import base64
 import random
 import os
 
-hula='http://127.0.0.1:8000'
+hula='http://wxpush.enjoyst.com'
 
 def get_global():
     return globals()
