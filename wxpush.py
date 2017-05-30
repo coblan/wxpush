@@ -7,13 +7,9 @@ import sys
 from wxbot.wxbot import WXBot
 import time
 
-class Mystd(object):
-    
-    def __init__(self,msg):
-        self.msg=msg
-        
-    def write(self, output_stream):
-        self.msg.append({'key':'msg','value':output_stream})
+import logging
+front_log=logging.getLogger('front')
+
         
 class MyWXBot(WXBot,object):
     
@@ -42,11 +38,11 @@ class MyWXBot(WXBot,object):
         super(MyWXBot,self).__init__()
         self.state=state
         self.operations=operations
-        sys.stdout=Mystd(self.state)
+        #sys.stdout=Mystd(self.state)
            
     
     def proc_msg(self):
-        print('登陆成功')
+        front_log.info('登陆成功')
         self.state.append({'key':'login','value':True})
         self.test_sync_check()
         self.status = 'loginsuccess'  #WxbotManage使用
@@ -134,7 +130,7 @@ def main(state,operations):
     #bot.DEBUG = True
     bot.conf['qr'] = 'png'
     bot.run()
-    print('上次用户监听循环退出/用户退出成功')
+    front_log.info('上次用户监听循环退出/用户退出成功')
 
 
 if __name__ == '__main__':

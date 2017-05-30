@@ -14,6 +14,11 @@ import json
 import base64
 import random
 import os
+import time
+import logging
+import common
+
+front_log=logging.getLogger('front')
 
 hula='http://wxpush.enjoyst.com'
 
@@ -21,20 +26,21 @@ def get_global():
     return globals()
 
 state=[]
+common.msg_list=state
+
 operations=deque([])
 
-sys.stdout=wxpush.Mystd(state)
+#sys.stdout=wxpush.Mystd(state)
 
 def start():
     global state
     thread.start_new_thread (wxpush.main,(state,operations))
-    print('启动成功，请扫描新的二维码登陆')
+    front_log.info('启动成功，请扫描新的二维码登陆')
     return {'status':'success'}
 
 def get_state():
-    global state
-    rt_state=list(state)
-    del state[:]
+    
+    rt_state=common.fetch_state()
     rt_state.append({'key':'md5','value':get_png_md5()})
     rt_state.append({'key':'bot','value':bool(wxpush.bot)})
     if rt_state:
@@ -50,9 +56,14 @@ def get_png_md5():
     return md5code
 
 def send(contact_list):
-    files = [os.path.join('./data',name) for name in os.listdir('./data')] 
+    names= os.listdir('./data')
     for contact in contact_list:
-        myfile = random.choice(files)
+        name = random.choice(names)
+        myfile=os.path.join('./data',name)
+        dc={
+            'file_name':name,
+            'nickname':contact['NickName'],
+        }
         if myfile.endswith('txt'):
             with open(myfile,'rb') as f:
                 raw = f.read()
@@ -60,25 +71,32 @@ def send(contact_list):
                     txt= raw.decode('gbk')
                 except UnicodeDecodeError:
                     txt=raw.decode('utf-8')
-                wxpush.bot.send_msg_by_uid(txt,contact['UserName'])
-                print('向(%s)发送 文字消息 成功'%contact['NickName'])
+                tm = time.time()
+                if wxpush.bot.send_msg_by_uid(txt,contact['UserName']):
+                    dc['timespan']=time.time()-tm
+                    front_log.info('向%(nickname)s发送 %(file_name)s 成功,耗费时间%(timespan)s秒'%dc)
+                else:
+                    front_log.error('向%(nickname)s发送 %(file_name)s [不成功]'%dc)
         elif myfile.lower().endswith(('jpg','png','gif')):
-            wxpush.bot.send_img_msg_by_uid(myfile,contact['UserName'])
-            print('向(%s)发送 图片消息 成功'%contact['NickName'])
+            tm = time.time()
+            if wxpush.bot.send_img_msg_by_uid(myfile,contact['UserName']):
+                dc['timespan']=time.time()-tm
+                front_log.info('向%(nickname)s发送 %(file_name)s 成功,耗费时间%(timespan)s秒'%dc)
+            else:
+                front_log.error('向%(nickname)s发送 %(file_name)s [不成功]'%dc)
         else:
-            print('[ERROR] 文件类型不合要求 %s'%myfile)
-        #wxpush.bot.send_msg_by_uid('hi', contact['UserName'])
-        time.sleep(0.8)
-    print('发送完毕')
+            front_log.warn('[ERROR] 文件类型不合要求 %s'%name)
+        time.sleep(0.5)
+    front_log.info('发送完毕')
     return {'status':'success'}
 
 def end_last_bot():
     if wxpush.bot:
-        print('发出退出命令')
+        front_log.info('发出退出命令')
         wxpush.bot.status = 'wait4loginout'
         wxpush.bot=None
     else:
-        print('没有登陆的账号')
+        front_log.info('没有登陆的账号')
     return {'status':'success'}
 
 def check(checkstring=''):
