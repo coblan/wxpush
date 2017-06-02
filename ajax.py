@@ -8,7 +8,7 @@ import md5
 from collections import deque
 import time
 import sys
-from common import get_mac_address
+from common import get_uuid
 import requests
 import json
 import base64
@@ -83,7 +83,7 @@ def end_last_bot():
 
 def check(checkstring=''):
     try:
-        mac=get_mac_address()
+        mac=get_uuid()
         dc={}
         if checkstring:
             rt = requests.get(hula+'/bj?wx=%(wx)s&bj=%(bj)s'%{'wx':base64.b64encode(mac),'bj':base64.b64encode( checkstring)})
