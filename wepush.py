@@ -11,17 +11,20 @@ from PyQt4.QtWebKit import QWebView
 import thread
 import server
 os.environ["REQUESTS_CA_BUNDLE"] = os.path.join(os.getcwd(), "cacert.pem")
+import common
+
 
 
 def main():
     app = QApplication(sys.argv)
+    
     
     shared= QSharedMemory("wepush")
     if shared.attach():
         return 0
     shared.create(1) 
     
-
+    sys.stdout=common.Mystd()
     
     thread.start_new_thread (server.start_server,(28289,))
     win =QWebView()

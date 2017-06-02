@@ -3,12 +3,17 @@ import os
 import urlparse
 import json
 import ajax
+from SocketServer import ThreadingMixIn
 from BaseHTTPServer import HTTPServer,BaseHTTPRequestHandler
 import wxpush
 import urlparse
+import logging  
+
+front_log=logging.getLogger('front')
 
 wxprefix=['https://wx2.qq.com','https://wx.qq.com']
 prefix_index=0
+
 class HybirdServer(BaseHTTPRequestHandler):  
     def do_GET(self):  
         global prefix_index
@@ -64,23 +69,14 @@ class HybirdServer(BaseHTTPRequestHandler):
             rt =fun_dc[fun_name](**call_item)
         self.wfile.write(json.dumps(rt))
          
-
+class MultiThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    pass
         
   
 def start_server(port):  
-    http_server = HTTPServer(('127.0.0.1', int(port)), HybirdServer)  
+    http_server = MultiThreadedHTTPServer(('127.0.0.1', int(port)), HybirdServer)  
     http_server.serve_forever() #设置一直监听并接收请求
 
-
-
-def get_files(path):
-    ls = os.listdir(path)
-    return ls
-   
-
-def get_img():
-    
-    return r'D:\work\coloring_backend\media\pool\1_pool_cover.png'
 
 if __name__=='__main__':
     start_server(28289)
